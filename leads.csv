@@ -1,1 +1,5 @@
-ID Lead,ID Cliente,Cliente,Contacto,Estado,Tecnologia,Tipo PPA,Duracion,Fecha Alta,Responsable,Notas,Docs
+ID Lead,ID Cliente,Cliente,Contacto,Estado,Tecnologia,Tipo PPA,Duracion,Fecha Alta,Capacidad,Ubicacion,Produccion,Responsable,Notas,Docs
+1,2, AFRY Management Consulting Spain S.L.U.,luis.blanco@afry.com / marta.felizcumpleaños@plenitude.es,Negociación,Solar,Pay-as-Produced,10,2025-06-18,43.75,Antequera (Málaga) ,85.28,Marta Pérez,nan,nan
+2,1,"Luminous Renewable Energy, S.L.",nicolas.fasquelle@luminous-re.com,En curso,Solar,Pay-as-Produced,10,2025-07-01,39.0," Zaratán, Valladolid  ",74.7,Marta Pérez,,
+3,9,AVINTIA - INSTALACIONES FOTOVOLTAICAS LIMPIAS S.L.,jamor@avintiaenergia.com/jcastelo@avintiaenergia.com,Cerrado Ganado,Solar,Pay-as-Produced,10,2026-01-01,10.64,Carbonero el Mayor (Segovia),14.28,Marta Pérez,,
+4,10,Plenitude Renewables,alejandro.moyano@eniplenitude.es,Cerrado Ganado,Solar,Solar Profile,10,2025-10-01,49.9,Torrejoncillo del Rey,48.0,,,

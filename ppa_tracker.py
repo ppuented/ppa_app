@@ -70,13 +70,13 @@ def convert_df(df):
 
 # --- Cargar datos ---
 leads = load_data(LEADS_FILE, ["ID Lead", "ID Cliente", "Cliente", "Contacto", "Estado","Tecnologia", "Tipo PPA","Duracion",
-                               "Fecha Alta", "Responsable", "Notas", "Docs"])
+                               "Fecha Alta", "Capacidad","Ubicacion","Produccion","Responsable", "Notas", "Docs"])
 offers = load_data(OFFERS_FILE, ["ID Oferta", "ID Lead", "Fecha Oferta", "Precio EUR/MWh",
                                  "Volumen MWh", "Probabilidad (%)", "Estado", "Notas", "Docs"])
 clients = load_data(CLIENTS_FILE, ["ID Cliente", "Nombre", "CIF/NIF", "Dirección", "Ciudad", "Provincia",
                                    "País", "Tipo", "Sector", "Notas", "Docs"])
 
-st.title("📊 Seguimiento de Leads, Ofertas y Clientes PPA")
+st.title("📊 PPA Tracker")
 
 # ================================
 # 🗂️ PESTAÑAS PRINCIPALES
@@ -97,23 +97,58 @@ tabs = st.tabs([
 # =======================
 with tabs[0]:
     st.header("👥 Gestión de Clientes / Contrapartes")
+
+    # Inicializar flag si no existe
+    if "reset_client_form" not in st.session_state:
+        st.session_state.reset_client_form = False
+
+    # Variables vacías si hay que resetear el formulario
+    default_values = {
+        "nombre": "",
+        "cif": "",
+        "direccion": "",
+        "ciudad": "",
+        "provincia": "",
+        "tipo_cliente": "Productor",
+        "sector": "",
+        "notas_cliente": ""
+    }
+
+    # Si hay que limpiar, asignamos valores vacíos
+    if st.session_state.reset_client_form:
+        for k, v in default_values.items():
+            st.session_state[k] = v
+        st.session_state.reset_client_form = False  # desactivar flag
+
     with st.form("form_client"):
-        nombre = st.text_input("Nombre o Razón Social")
-        cif = st.text_input("CIF / NIF")
-        direccion = st.text_input("Dirección")
-        ciudad = st.text_input("Ciudad")
-        provincia = st.text_input("Provincia")
-        pais = "España"  # Fijo
-        tipo = st.selectbox("Tipo de Cliente", ["Productor", "Consumidor", "Trader", "Otro"])
-        sector = st.text_input("Sector")
-        notas = st.text_area("Notas adicionales")
+        nombre = st.text_input("Nombre o Razón Social", key="nombre")
+        cif = st.text_input("CIF / NIF", key="cif")
+        direccion = st.text_input("Dirección", key="direccion")
+        ciudad = st.text_input("Ciudad", key="ciudad")
+        provincia = st.text_input("Provincia", key="provincia")
+        pais = "España"
+        tipo = st.selectbox(
+            "Tipo de Cliente",
+            ["Productor", "Consumidor", "Trader", "Otro"],
+            key="tipo_cliente"
+        )
+        sector = st.text_input("Sector", key="sector")
+        notas = st.text_area("Notas adicionales", key="notas_cliente")
+
         submit_client = st.form_submit_button("Guardar Cliente")
 
         if submit_client:
             new_id = len(clients) + 1
-            clients.loc[len(clients)] = [new_id, nombre, cif, direccion, ciudad, provincia, pais, tipo, sector, notas, ""]
+            clients.loc[len(clients)] = [
+                new_id, nombre, cif, direccion, ciudad, provincia, pais, tipo, sector, notas, ""
+            ]
             clients.to_csv(CLIENTS_FILE, index=False)
             st.success(f"✅ Cliente '{nombre}' añadido correctamente.")
+
+            # ✅ Activamos el reset para limpiar los campos en esta misma vista
+            st.session_state.reset_client_form = True
+            st.experimental_set_query_params(_="refresh")  # pequeño truco para forzar redibujo
+            st.rerun()
 
     st.subheader("📋 Clientes Registrados (España)")
     filtro_nombre = st.text_input("Filtrar por nombre de cliente:")
@@ -126,8 +161,14 @@ with tabs[0]:
         df = df[df["Tipo"] == filtro_tipo]
     st.dataframe(df, use_container_width=True)
 
-    st.download_button("⬇️ Descargar Clientes (CSV)", data=convert_df(df),
-                       file_name="clientes.csv", mime="text/csv")
+    st.download_button(
+        "⬇️ Descargar Clientes (CSV)",
+        data=convert_df(df),
+        file_name="clientes.csv",
+        mime="text/csv"
+    )
+
+
 
 # =======================
 # TAB 2: Añadir Lead
@@ -141,16 +182,19 @@ with tabs[1]:
         contacto = st.text_input("Contacto / Email")
         estado = st.selectbox("Estado", ["Nuevo", "En curso", "Negociación", "Cerrado Ganado", "Cerrado Perdido"])
         tecnologia = st.selectbox("Tecnología", ["Solar", "Eólica", "Solar+BESS", "Otro"])
-        tipo = st.selectbox("Tipo PPA", ["Fijo", "Indexado", "Virtual", "Otro"])
+        tipo = st.selectbox("Tipo PPA", ["Pay-as-Produced", "Solar Profile", "Baseload Solar", "Otro"])
         duracion = st.number_input("Duración (años)", min_value=5, max_value=15, value=10, step=1)
         fecha = st.date_input("Fecha Alta", value=date.today())
+        capacidad = st.number_input("Capacidad nominal (MWp)", min_value=0.0, step=0.1)
+        ubicacion = st.text_input("Ubicación del proyecto")
+        produccion = st.number_input("Producción anual (GWh/año)", min_value=0.0, step=0.1)
         resp = st.text_input("Responsable")
         notas = st.text_area("Notas")
         submit_lead = st.form_submit_button("Guardar Lead")
 
         if submit_lead:
             new_id = len(leads) + 1
-            leads.loc[len(leads)] = [new_id, cliente_id, cliente, contacto, estado,tecnologia,tipo,duracion, fecha, resp, notas, ""]
+            leads.loc[len(leads)] = [new_id, cliente_id, cliente, contacto, estado,tecnologia,tipo,duracion, fecha,capacidad,ubicacion,produccion, resp, notas, ""]
             leads.to_csv(LEADS_FILE, index=False)
             st.success(f"✅ Lead {new_id} añadido con éxito")
 
@@ -196,13 +240,13 @@ with tabs[3]:
         tecnologia = st.selectbox(
             "Tecnología",
             ["Solar", "Eólica", "Solar+BESS", "Otro"],
-            index=["Solar", "Eólica", "Solar+BESS", "Otro"].index(lead_row.get("Tecnología", "Solar"))
+            index=["Solar", "Eólica", "Solar+BESS", "Otro"].index(lead_row.get("Tecnologia", "Solar"))
         )
 
         tipo = st.selectbox(
             "Tipo PPA",
-            ["Fijo", "Indexado", "Virtual", "Otro"],
-            index=["Fijo", "Indexado", "Virtual", "Otro"].index(lead_row["Tipo PPA"]),
+            ["Pay-as-Produced", "Solar Profile", "Baseload Solar", "Otro"],
+            index=["Pay-as-Produced", "Solar Profile", "Baseload Solar", "Otro"].index(lead_row["Tipo PPA"]),
             key=f"edit_tipo_{lead_id}"
         )
 
@@ -210,9 +254,32 @@ with tabs[3]:
             "Duración (años)",
             min_value=5,
             max_value=15,
-            value=int(lead_row.get("Duración", 10)),
+            value=int(lead_row.get("Duracion", 10)),
             step=1,
             key=f"edit_duracion_{lead_id}"
+        )
+
+        # 🆕 Campos añadidos
+        capacidad = st.number_input(
+            "Capacidad nominal (MWp)",
+            min_value=0.0,
+            step=0.1,
+            value=float(lead_row.get("Capacidad", 0.0) or 0.0),
+            key=f"edit_capacidad_{lead_id}"
+        )
+
+        ubicacion = st.text_input(
+            "Ubicación del proyecto",
+            value=lead_row.get("Ubicacion", ""),
+            key=f"edit_ubicacion_{lead_id}"
+        )
+
+        produccion = st.number_input(
+            "Producción anual (GWh/año)",
+            min_value=0.0,
+            step=0.1,
+            value=float(lead_row.get("Produccion", 0.0) or 0.0),
+            key=f"edit_produccion_{lead_id}"
         )
 
         resp = st.text_input("Responsable", value=lead_row["Responsable"], key=f"edit_resp_{lead_id}")
@@ -251,8 +318,8 @@ with tabs[3]:
 
             leads.loc[
                 leads["ID Lead"] == lead_id,
-                ["Cliente", "Contacto", "Estado", "Tipo PPA","Duracion", "Responsable", "Notas", "Docs"]
-            ] = [cliente, contacto, estado, tipo, duracion, resp, notas, ";".join(remaining_docs)]
+                ["Cliente", "Contacto", "Estado", "Tipo PPA","Duracion","Tecnologia","Capacidad","Ubicacion","Produccion",  "Responsable", "Notas", "Docs"]
+            ] = [cliente, contacto, estado, tipo, duracion,tecnologia,capacidad,ubicacion,produccion, resp, notas, ";".join(remaining_docs)]
 
             leads.to_csv(LEADS_FILE, index=False)
             st.success("✅ Lead actualizado")
@@ -439,49 +506,247 @@ with tabs[6]:
 
 
 
+
 # =======================
-# TAB 6: Dashboard (España)
+# TAB 8: DASHBOARD CORPORATIVO (LIGHT THEME con filtros desplegables)
 # =======================
 with tabs[7]:
-    st.header("📈 Dashboard con filtros")
-    col1, col2, col3 = st.columns(3)
-    responsable_filtro = col1.selectbox("Responsable", ["Todos"] + sorted(
-        leads["Responsable"].dropna().unique().tolist())) if not leads.empty else "Todos"
-    estado_filtro_lead = col2.selectbox("Estado Lead",
-                                        ["Todos"] + ["Nuevo", "En curso", "Negociación", "Cerrado Ganado",
-                                                     "Cerrado Perdido"])
-    estado_filtro_offer = col3.selectbox("Estado Oferta",
-                                         ["Todos"] + ["Enviada", "En negociación", "Aprobada", "Rechazada", "Cerrada"])
-    cliente_filtro = st.text_input("Buscar Cliente (contiene):")
+    st.markdown("""
+        <style>
+        body, .stApp {
+            background-color: #f7f9fb;
+            color: #2c3e50;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #ffffff 0%, #eaf2f8 100%);
+            border: 1px solid #dce3ea;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .metric-title {
+            font-size: 15px;
+            color: #6c757d;
+        }
+        .metric-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1b263b;
+            margin-top: 6px;
+        }
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #005f73;
+            margin-top: 40px;
+            margin-bottom: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.title("📊 Dashboard Corporativo — Seguimiento PPA")
+
+    # -----------------------------
+    # 🎛️ FILTROS LATERALES
+    # -----------------------------
+    with st.sidebar:
+        st.header("🎚️ Filtros globales")
+
+        responsable_filtro = st.selectbox(
+            "Responsable",
+            ["Todos"] + sorted(leads["Responsable"].dropna().unique().tolist())
+        ) if not leads.empty else "Todos"
+
+        cliente_lista = sorted(leads["Cliente"].dropna().unique().tolist()) if not leads.empty else []
+        cliente_filtro = st.selectbox(
+            "Cliente / Contraparte (Leads)",
+            ["Todos"] + cliente_lista
+        )
+
+        estado_lead_filtro = st.selectbox(
+            "Estado Lead",
+            ["Todos", "Nuevo", "En curso", "Negociación", "Cerrado Ganado", "Cerrado Perdido"]
+        )
+
+        estado_offer_filtro = st.selectbox(
+            "Estado Oferta",
+            ["Todos", "Enviada", "En negociación", "Aprobada", "Rechazada", "Cerrada"]
+        )
+
+    # ===============================
+    # 👥 DASHBOARD DE LEADS
+    # ===============================
+    st.markdown('<div class="section-title">👥 Dashboard de Leads</div>', unsafe_allow_html=True)
 
     leads_filtrados = leads.copy()
     if responsable_filtro != "Todos":
         leads_filtrados = leads_filtrados[leads_filtrados["Responsable"] == responsable_filtro]
-    if estado_filtro_lead != "Todos":
-        leads_filtrados = leads_filtrados[leads_filtrados["Estado"] == estado_filtro_lead]
-    if cliente_filtro:
-        leads_filtrados = leads_filtrados[leads_filtrados["Cliente"].str.contains(cliente_filtro, case=False, na=False)]
+    if estado_lead_filtro != "Todos":
+        leads_filtrados = leads_filtrados[leads_filtrados["Estado"] == estado_lead_filtro]
+    if cliente_filtro != "Todos":
+        leads_filtrados = leads_filtrados[leads_filtrados["Cliente"] == cliente_filtro]
 
-    offers_filtrados = offers.copy()
-    if estado_filtro_offer != "Todos":
-        offers_filtrados = offers_filtrados[offers_filtrados["Estado"] == estado_filtro_offer]
+    # --- KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Total Leads</div>
+                <div class="metric-value">{len(leads_filtrados):,}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Capacidad Total (MWp)</div>
+                <div class="metric-value">{round(leads_filtrados["Capacidad"].sum(),2) if not leads_filtrados.empty else 0}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Producción Total (GWh)</div>
+                <div class="metric-value">{round(leads_filtrados["Produccion"].sum(),2) if not leads_filtrados.empty else 0}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Responsables Activos</div>
+                <div class="metric-value">{leads_filtrados["Responsable"].nunique()}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
     if not leads_filtrados.empty:
+        fig_estado = px.pie(
+            leads_filtrados, names="Estado",
+            title="Distribución por Estado", hole=0.4,
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        fig_estado.update_layout(template="plotly_white")
+
+        fig_tec = px.bar(
+            leads_filtrados.groupby("Tecnologia").size().reset_index(name="Cantidad"),
+            x="Tecnologia", y="Cantidad", title="Leads por Tecnología",
+            color="Tecnologia", color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        fig_tec.update_layout(template="plotly_white")
+
+        colA, colB = st.columns(2)
+        colA.plotly_chart(fig_estado, use_container_width=True)
+        colB.plotly_chart(fig_tec, use_container_width=True)
+
+        fig_resp = px.bar(
+            leads_filtrados.groupby("Responsable").size().reset_index(name="Cantidad"),
+            x="Responsable", y="Cantidad", title="Leads por Responsable",
+            color="Responsable", color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+        fig_resp.update_layout(template="plotly_white")
+        st.plotly_chart(fig_resp, use_container_width=True)
+
+        st.markdown("### 📋 Detalle de Leads Filtrados")
+        st.dataframe(
+            leads_filtrados[
+                ["ID Lead", "Cliente", "Estado", "Tecnologia", "Tipo PPA", "Duracion", "Capacidad", "Produccion", "Responsable"]
+            ],
+            use_container_width=True
+        )
+    else:
+        st.info("No hay leads con los filtros seleccionados.")
+
+
+    # ===============================
+    # 💼 DASHBOARD DE OFERTAS
+    # ===============================
+    st.markdown('<div class="section-title">💼 Dashboard de Ofertas</div>', unsafe_allow_html=True)
+
+    # Lista de contrapartes desde ofertas (vinculadas con leads)
+    ofertas_con_clientes = offers.merge(leads[["ID Lead", "Cliente"]], on="ID Lead", how="left")
+    cliente_lista_offers = sorted(ofertas_con_clientes["Cliente"].dropna().unique().tolist())
+    cliente_offer_filtro = st.sidebar.selectbox(
+        "Cliente / Contraparte (Ofertas)",
+        ["Todos"] + cliente_lista_offers
+    )
+
+    offers_filtrados = ofertas_con_clientes.copy()
+    if estado_offer_filtro != "Todos":
+        offers_filtrados = offers_filtrados[offers_filtrados["Estado"] == estado_offer_filtro]
+    if cliente_offer_filtro != "Todos":
+        offers_filtrados = offers_filtrados[offers_filtrados["Cliente"] == cliente_offer_filtro]
+    if responsable_filtro != "Todos":
         offers_filtrados = offers_filtrados[offers_filtrados["ID Lead"].isin(leads_filtrados["ID Lead"])]
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Leads", len(leads_filtrados))
-    col2.metric("Total Ofertas", len(offers_filtrados))
-    pipeline = 0
-    if not offers_filtrados.empty:
-        pipeline = (offers_filtrados["Precio EUR/MWh"] * offers_filtrados["Volumen MWh"]).sum()
-    col3.metric("Pipeline Estimado (€)", round(pipeline, 2))
+    total_ofertas = len(offers_filtrados)
+    volumen_total = offers_filtrados["Volumen MWh"].sum() if not offers_filtrados.empty else 0
+    precio_medio = offers_filtrados["Precio EUR/MWh"].mean() if not offers_filtrados.empty else 0
+    pipeline = (offers_filtrados["Precio EUR/MWh"] * offers_filtrados["Volumen MWh"] * (offers_filtrados["Probabilidad (%)"]/100)).sum() if not offers_filtrados.empty else 0
 
-    st.subheader("📊 Gráficos")
-    if not leads_filtrados.empty:
-        fig_leads = px.bar(leads_filtrados.groupby("Estado").size().reset_index(name="Cantidad"), x="Estado",
-                           y="Cantidad", color="Estado")
-        st.plotly_chart(fig_leads, use_container_width=True)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Total Ofertas</div>
+                <div class="metric-value">{total_ofertas:,}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Volumen Total (MWh)</div>
+                <div class="metric-value">{round(volumen_total,2)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Precio Medio (€/MWh)</div>
+                <div class="metric-value">{round(precio_medio,2)}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Pipeline Ponderado (€)</div>
+                <div class="metric-value">{round(pipeline,2):,}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
     if not offers_filtrados.empty:
-        fig_offers = px.bar(offers_filtrados.groupby("Estado").size().reset_index(name="Cantidad"), x="Estado",
-                            y="Cantidad", color="Estado")
-        st.plotly_chart(fig_offers, use_container_width=True)
+        fig_estado_offer = px.bar(
+            offers_filtrados.groupby("Estado").size().reset_index(name="Cantidad"),
+            x="Estado", y="Cantidad", title="Ofertas por Estado",
+            color="Estado", color_discrete_sequence=px.colors.qualitative.Safe
+        )
+        fig_estado_offer.update_layout(template="plotly_white")
+
+        fig_precio_estado = px.box(
+            offers_filtrados, x="Estado", y="Precio EUR/MWh",
+            title="Precio por Estado de Oferta",
+            color="Estado", color_discrete_sequence=px.colors.qualitative.Vivid
+        )
+        fig_precio_estado.update_layout(template="plotly_white")
+
+        colA, colB = st.columns(2)
+        colA.plotly_chart(fig_estado_offer, use_container_width=True)
+        colB.plotly_chart(fig_precio_estado, use_container_width=True)
+
+        fig_prob = px.histogram(
+            offers_filtrados, x="Probabilidad (%)", nbins=10,
+            title="Distribución de Probabilidades",
+            color_discrete_sequence=["#0077b6"]
+        )
+        fig_prob.update_layout(template="plotly_white")
+        st.plotly_chart(fig_prob, use_container_width=True)
+
+        st.markdown("### 📋 Detalle de Ofertas Filtradas")
+        st.dataframe(
+            offers_filtrados[[
+                "ID Oferta", "Cliente", "ID Lead", "Estado", "Precio EUR/MWh", "Volumen MWh", "Probabilidad (%)"
+            ]],
+            use_container_width=True
+        )
+    else:
+        st.info("No hay ofertas con los filtros seleccionados.")
+
+

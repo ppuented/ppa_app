@@ -1,1 +1,4 @@
 ID Oferta,ID Lead,Fecha Oferta,Precio EUR/MWh,Volumen MWh,Probabilidad (%),Estado,Notas,Docs
+101,1,2025-06-18,29.76,85280.0,44,Enviada,,
+102,2,2025-08-07,28.0,74700.0,25,Rechazada,,
+103,3,2025-10-20,33.0,14280.0,50,Aprobada,nan,nan
