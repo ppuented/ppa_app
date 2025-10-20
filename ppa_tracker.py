@@ -551,7 +551,7 @@ with tabs[7]:
     # 🎛️ FILTROS LATERALES
     # -----------------------------
     with st.sidebar:
-        st.header("🎚️ Filtros globales")
+        st.header("🎚️ Filtros globales Dashboard")
 
         responsable_filtro = st.selectbox(
             "Responsable",
@@ -748,6 +748,7 @@ with tabs[7]:
         )
     else:
         st.info("No hay ofertas con los filtros seleccionados.")
+
 
 
 
