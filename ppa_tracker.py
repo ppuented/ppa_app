@@ -545,7 +545,7 @@ with tabs[7]:
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("📊 Dashboard Corporativo — Seguimiento PPA")
+    st.title("Seguimiento PPA")
 
     # -----------------------------
     # 🎛️ FILTROS LATERALES
@@ -748,5 +748,6 @@ with tabs[7]:
         )
     else:
         st.info("No hay ofertas con los filtros seleccionados.")
+
 
 
